@@ -1,8 +1,10 @@
 cd C:\Users
 ForEach ($t in dir -Name -Exclude "All Users") 
 {del "$t\AppData\Local\Temp\*",
-    "$t\AppData\Local\1C",
-    "$t\AppData\Roaming\1C\Файлы\*",
+    "$t\AppData\Local\1C\*",
+    "$t\AppData\Roaming\1C\1Cv82",
+    "$t\AppData\Roaming\1C\1Cv8",
+    "$t\AppData\Roaming\1C\Файлы",
  "$t\AppData\Local\Microsoft\Windows\WebCache\*",
  "$t\AppData\Local\Microsoft\Windows\INetCache\IE\*",
  "$t\AppData\Local\Microsoft\Windows\INetCache\Low\IE\*",
