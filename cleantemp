@@ -15,7 +15,7 @@ ForEach ($t in dir -Name -Exclude "All Users")
  "$t\Downloads\*",
  "$t\AppData\Local\Google\Chrome\User Data\Crashpad\*",
  "$t\AppData\Local\Google\Chrome\User Data\Default\Media Cache",
- "$t\\AppData\Local\Microsoft\Windows\WER",
+ "$t\AppData\Local\Microsoft\Windows\WER\*",
 
  "$t\AppData\Local\Google\Chrome\User Data\Default\Application Cache\Cache\*",
  "$t\AppData\Local\Google\Chrome\User Data\Default\Cache\*" -Recurse -Force; Write-Host "$t = OK"}
