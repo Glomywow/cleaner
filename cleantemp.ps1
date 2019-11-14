@@ -23,7 +23,7 @@ cd C:\
 Write-Host "`nПРОЦЕСС ЗАВЕРШЕН`n"
 Start-Process -FilePath "C:\Program Files (x86)\1cv8\common\1cestart.exe" 
 sleep(1)
-Start-Process -FilePath "C:\Program Files (x86)\1cv8\common\1cestart.exe" #-ArgumentList 'enterprise /sbase\ /AppAutoCheckMode' 
+Start-Process -FilePath "C:\Program Files (x86)\1cv8\common\1cestart.exe" #-ArgumentList 'enterprise /sbase\sk /AppAutoCheckMode' 
 sleep(2)
 Start-Process -FilePath "C:\Program Files (x86)\1cv8\common\1cestart.exe" 
 sleep(3)
