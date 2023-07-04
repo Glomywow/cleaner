@@ -1,65 +1,125 @@
-# Установка шаблонного пути к папкам пользователей
-$usersPath = "C:\Users"
-$diskThreshold = 1 # Пороговое значение свободного места на диске в гигабайтах
+function Get-FolderSize {
+    param (
+        [Parameter(Mandatory=$true)]
+        [ValidateScript({Test-Path $_ -PathType 'Container'})]
+        [string]$FolderPath
+    )
 
-# Проверка доступного места на диске
-$diskFreeSpaceGB = (Get-PSDrive -PSProvider 'FileSystem' | Where-Object {$_.Root -eq 'C:\'}).Free / 1GB
-if ($diskFreeSpaceGB -lt $diskThreshold) {
-    Write-Host "Недостаточно свободного места на диске. Операция удаления отменена."
-    exit
+    $totalSize = 0
+
+    $folders = Get-ChildItem -Path $FolderPath -Directory -Recurse
+
+    foreach ($folder in $folders) {
+        $files = Get-ChildItem -Path $folder.FullName -File
+        if ($files) {
+            $folderSize = $files |
+                Measure-Object -Property Length -Sum |
+                Select-Object -ExpandProperty Sum
+        }
+        else {
+            $folderSize = 0
+        }
+
+        $totalSize += $folderSize
+    }
+
+    return $totalSize
 }
 
-# Поиск пользовательских папок
-$userFolders = Get-ChildItem -Path $usersPath -Directory
-
-# Вывод списка пользователей
-$userCount = $userFolders.Count
-Write-Host "Найдено $userCount пользователей с никами:"
-foreach ($userFolder in $userFolders) {
-    $userName = $userFolder.Name
-    Write-Host $userName
+function Perform-FolderCleanup {
+    # ...
+    # (код очистки папок пользователей)
+    # ...
 }
 
-# Логирование
-$logFilePath = "G:\123.log"
-$date = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-Add-Content -Path $logFilePath -Value "[$date] Найдено $userCount пользователей."
+function Perform-FileCleanup {
+    # ...
+    # (код очистки файлов пользователей)
+    # ...
+}
 
-# Запрос на удаление временных файлов
-$deleteTemp = Read-Host "Хотите удалить временные файлы для всех найденных пользователей? (y/n)"
+function Get-UserDiskUsage {
+    $userDiskUsage = @()
 
-if ($deleteTemp.ToLower() -eq "y") {
-    foreach ($userFolder in $userFolders) {
-        $userName = $userFolder.Name
-        Write-Host "Удаляются временные файлы для пользователя $userName"
+    $users = Get-ChildItem -Path "C:\Users" -Directory
 
-        # Удаление временных файлов
-        $tempPath = Join-Path -Path $userFolder.FullName -ChildPath "AppData\Local\Temp"
-        try {
-            Remove-Item -Path $tempPath\* -Force -Recurse -ErrorAction Stop
-            Write-Host "Временные файлы успешно удалены для пользователя $userName"
+    foreach ($user in $users) {
+        $userName = $user.Name
+        $userFolderPath = Join-Path -Path "C:\Users" -ChildPath $userName
+
+        $userDiskUsage += [PSCustomObject]@{
+            UserName = $userName
+            DiskUsage = (Get-FolderSize -FolderPath $userFolderPath) / 1MB
         }
-        catch {
-            Write-Host "Ошибка при удалении временных файлов для пользователя ${userName}: $_"
+    }
+
+    $userDiskUsage = $userDiskUsage | Sort-Object -Property DiskUsage -Descending
+
+    return $userDiskUsage
+}
+
+function Output-UserDiskUsage {
+    param (
+        [Parameter(Mandatory=$true)]
+        [array]$UserDiskUsage,
+        [Parameter(Mandatory=$true)]
+        [string]$OutputFilePath
+    )
+
+    $output = "Занимаемая память пользователей:`r`n"
+
+    foreach ($userUsage in $UserDiskUsage) {
+        $output += "User: $($userUsage.UserName) - $($userUsage.DiskUsage) MB`r`n"
+        $output += "Топ 3 папки по занимаемому месту пользователя:`r`n"
+        
+        $userFolderPath = Join-Path -Path "C:\Users" -ChildPath $userUsage.UserName
+        $topFolders = Get-ChildItem -Path $userFolderPath -Directory |
+            ForEach-Object {
+                $folderPath = $_.FullName
+                $folderSize = Get-FolderSize -FolderPath $folderPath
+                [PSCustomObject]@{
+                    FolderName = $_.Name
+                    FolderSize = $folderSize / 1MB
+                }
+            } |
+            Sort-Object -Property FolderSize -Descending |
+            Select-Object -First 3
+
+        foreach ($folder in $topFolders) {
+            $output += "$($folder.FolderName)`r`n"
         }
 
-        # Очистка папок "Мои документы", "Рабочий стол" и "Загрузки"
-        $documentsPath = Join-Path -Path $userFolder.FullName -ChildPath "Documents"
-        $desktopPath = Join-Path -Path $userFolder.FullName -ChildPath "Desktop"
-        $downloadsPath = Join-Path -Path $userFolder.FullName -ChildPath "Downloads"
+        $output += "`r`n"
+    }
 
-        try {
-            Remove-Item -Path $documentsPath\* -Force -Recurse -ErrorAction Stop
-            Remove-Item -Path $desktopPath\* -Force -Recurse -ErrorAction Stop
-            Remove-Item -Path $downloadsPath\* -Force -Recurse -ErrorAction Stop
-            Write-Host "Папки пользователя $userName успешно очищены"
-        }
-        catch {
-            Write-Host "Ошибка при очистке папок пользователя ${userName}: $_"
-        }
+    $output | Out-File -FilePath $OutputFilePath
+    Write-Host "Результаты проверки занятого места каждым пользователем сохранены в файл $OutputFilePath"
+}
 
-        # Логирование
-        $date = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-        Add-Content -Path $logFilePath -Value "[$date] Папки пользователя $userName очищены."
+Write-Host "Выберите вариант очистки"
+Write-Host "1. Произвести заготовленную чистку папок"
+Write-Host "2. Произвести чистку jpg, word, pdf"
+Write-Host "3. Проверить занятое место каждым пользователем"
+
+# Получение выбранного варианта
+$choice = Read-Host "Введите номер варианта (1, 2 или 3)"
+
+switch ($choice) {
+    1 {
+        # Пункт 1: заготовленная чистка папок
+        Perform-FolderCleanup
+    }
+    2 {
+        # Пункт 2: чистка jpg, word, pdf
+        Perform-FileCleanup
+    }
+    3 {
+        # Пункт 3: проверка занятого места каждым пользователем
+        $userDiskUsage = Get-UserDiskUsage
+        $outputFilePath = "UserDiskUsage.txt"
+        Output-UserDiskUsage -UserDiskUsage $userDiskUsage -OutputFilePath $outputFilePath
+    }
+    default {
+        Write-Host "Некорректный выбор. Завершение скрипта."
     }
 }
